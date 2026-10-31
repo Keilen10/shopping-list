@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shopping list</title>
+<meta name="theme-color" content="#f6f5f1" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161614" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Shopping list">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root {
+    --bg: #f6f5f1; --card: #ffffff; --ink: #1d1d1b; --muted: #77746c;
+    --line: #e7e4dc; --accent: #2f7d5b; --accent-soft: #e4f1ea; --danger: #b54134;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161614; --card: #201f1c; --ink: #f1efe9; --muted: #9a968c;
+      --line: #33312c; --accent: #5cbf91; --accent-soft: #1f3529; --danger: #e07a6d; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  main { max-width: 520px; margin: 0 auto; padding: 32px 18px 60px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
+  h1 { font-size: 28px; margin: 0; letter-spacing: -0.02em; }
+  .count { color: var(--muted); font-size: 14px; }
+  form { display: flex; gap: 8px; margin-bottom: 12px; }
+  input[type=text] { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 12px 14px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); outline: none; }
+  input[type=text]:focus { border-color: var(--accent); }
+  input.qty { flex: 0 0 76px; }
+  button { font: inherit; cursor: pointer; border: none; }
+  .add { background: var(--accent); color: #fff; font-weight: 600; padding: 0 18px; border-radius: 12px; font-size: 15px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 22px; }
+  .chip { background: transparent; border: 1px dashed var(--line); color: var(--muted);
+    padding: 5px 10px; border-radius: 999px; font-size: 13px; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-bottom: 16px; }
+  .sec-head { display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; font-size: 12px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .link { background: none; color: var(--muted); font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .link:hover { color: var(--danger); }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  li:last-child { border-bottom: none; }
+  .box { flex: 0 0 22px; height: 22px; border-radius: 7px; border: 2px solid var(--line);
+    background: transparent; display: grid; place-items: center; padding: 0; }
+  .box:hover { border-color: var(--accent); }
+  .done .box { background: var(--accent); border-color: var(--accent); }
+  .box svg { width: 13px; height: 13px; opacity: 0; }
+  .done .box svg { opacity: 1; }
+  .name { flex: 1; font-size: 16px; word-break: break-word; }
+  .q { color: var(--muted); font-size: 14px; margin-left: 6px; }
+  .done .name { color: var(--muted); text-decoration: line-through; }
+  .del { background: none; color: var(--muted); font-size: 20px; line-height: 1; padding: 2px 6px; border-radius: 6px; opacity: 0.5; }
+  li:hover .del { opacity: 1; }
+  .del:hover { color: var(--danger); }
+  .empty { padding: 26px 14px; text-align: center; color: var(--muted); font-size: 15px; }
+  .status { text-align: center; color: var(--muted); font-size: 12px; min-height: 16px; }
+  .readonly form, .readonly .chips, .readonly .del, .readonly .link { display: none; }
+</style>
+</head>
+<body>
+<main id="app">
+  <header>
+    <h1>Shopping list</h1>
+    <span class="count" id="count"></span>
+  </header>
+
+  <form id="addForm" autocomplete="off">
+    <input type="text" id="itemInput" placeholder="Add an item…" aria-label="Item">
+    <input type="text" id="qtyInput" class="qty" placeholder="Qty" aria-label="Quantity">
+    <button class="add" type="submit">Add</button>
+  </form>
+
+  <div class="chips" id="chips"></div>
+
+  <section>
+    <div class="sec-head"><span>To buy</span></div>
+    <ul id="todo"></ul>
+  </section>
+
+  <section id="doneSec">
+    <div class="sec-head"><span>In the cart</span><button class="link" id="clearDone" type="button">Clear</button></div>
+    <ul id="done"></ul>
+  </section>
+
+  <div class="status" id="status"></div>
+</main>
+
+<script type="application/json" id="state">{"items":[]}</script>
+
+<script>
+(function () {
+  // Pristine copy of this page, taken before anything is rendered.
+  // Saving = swap the state JSON inside it and publish the whole document.
+  var TEMPLATE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  var STATE_RE = /(<script type="application\/json" id="state">)[\s\S]*?(<\/script>)/;
+
+  var state;
+  try { state = JSON.parse(document.getElementById('state').textContent); } catch (e) { state = { items: [] }; }
+  if (!state.items) state.items = [];
+
+  var QUICK = ['Milk', 'Bread', 'Eggs', 'Butter', 'Cheese', 'Coffee', 'Bananas', 'Apples', 'Chicken', 'Pasta', 'Rice', 'Toilet paper'];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var artifact = null, saveTimer = null, readOnly = false, LS_KEY = 'shopping-list-fallback';
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  var CHECK = '<svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg>';
+
+  function row(it) {
+    return '<li class="' + (it.done ? 'done' : '') + '" data-id="' + it.id + '">' +
+      '<button class="box" type="button" aria-label="Toggle ' + esc(it.name) + '">' + CHECK + '</button>' +
+      '<span class="name">' + esc(it.name) + (it.qty ? '<span class="q">× ' + esc(it.qty) + '</span>' : '') + '</span>' +
+      '<button class="del" type="button" aria-label="Remove ' + esc(it.name) + '">×</button></li>';
+  }
+
+  function render() {
+    var todo = state.items.filter(function (i) { return !i.done; });
+    var done = state.items.filter(function (i) { return i.done; });
+    $('todo').innerHTML = todo.length ? todo.map(row).join('') : '<div class="empty">Nothing to buy — add something above.</div>';
+    $('done').innerHTML = done.map(row).join('');
+    $('doneSec').style.display = done.length ? '' : 'none';
+    $('count').textContent = todo.length ? todo.length + ' left' : (done.length ? 'All done ✓' : '');
+    var have = {};
+    state.items.forEach(function (i) { if (!i.done) have[i.name.toLowerCase()] = 1; });
+    $('chips').innerHTML = QUICK.filter(function (q) { return !have[q.toLowerCase()]; })
+      .map(function (q) { return '<button class="chip" type="button" data-q="' + esc(q) + '">+ ' + esc(q) + '</button>'; }).join('');
+  }
+
+  function status(msg) { $('status').textContent = msg || ''; }
+
+  function save() {
+    if (readOnly) return;
+    clearTimeout(saveTimer);
+    status('Saving…');
+    doSave();
+  }
+
+  function doSave() {
+    var json = JSON.stringify(state).replace(/</g, '\\u003c');
+    if (artifact) {
+      var html = TEMPLATE.replace(STATE_RE, function (_, a, b) { return a + json + b; });
+      Promise.resolve(artifact.publish(html)).then(function () { status('Saved'); }).catch(function (err) {
+        var code = (err && (err.code || err.message)) || '';
+        if (/not_granted|not_writer/.test(code)) { setReadOnly(); }
+        else if (/conflict/.test(code)) { status('Updated elsewhere — reloading…'); }
+        else { status('Could not save — try again'); }
+      });
+    } else {
+      try { localStorage.setItem(LS_KEY, json); status('Saved on this device'); } catch (e) { status(''); }
+    }
+  }
+
+  function setReadOnly() { readOnly = true; document.body.classList.add('readonly'); status('View only'); }
+
+  function addItem(name, qty) {
+    name = (name || '').trim(); qty = (qty || '').trim();
+    if (!name) return;
+    var existing = state.items.find(function (i) { return !i.done && i.name.toLowerCase() === name.toLowerCase(); });
+    if (existing) { if (qty) existing.qty = qty; }
+    else state.items.unshift({ id: uid(), name: name, qty: qty, done: false });
+    render(); save();
+  }
+
+  $('addForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    addItem($('itemInput').value, $('qtyInput').value);
+    $('itemInput').value = ''; $('qtyInput').value = '';
+    try { sessionStorage.removeItem('sl-draft'); } catch (_) {}
+    $('itemInput').focus();
+  });
+
+  // Keep an unfinished entry if the page reloads after a save.
+  $('itemInput').addEventListener('input', function () {
+    try { sessionStorage.setItem('sl-draft', this.value); } catch (_) {}
+  });
+  try { var d = sessionStorage.getItem('sl-draft'); if (d) $('itemInput').value = d; } catch (_) {}
+
+  $('chips').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip'); if (b) addItem(b.getAttribute('data-q'), '');
+  });
+
+  document.addEventListener('click', function (e) {
+    var li = e.target.closest('li[data-id]'); if (!li || readOnly) return;
+    var id = li.getAttribute('data-id');
+    var it = state.items.find(function (i) { return i.id === id; }); if (!it) return;
+    if (e.target.closest('.del')) { state.items = state.items.filter(function (i) { return i.id !== id; }); render(); save(); }
+    else if (e.target.closest('.box') || e.target.closest('.name')) { it.done = !it.done; render(); save(); }
+  });
+
+  $('clearDone').addEventListener('click', function () {
+    state.items = state.items.filter(function (i) { return !i.done; }); render(); save();
+  });
+
+  render();
+
+  // Shared saving through the artifact; fall back to this browser only.
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('artifact').then(function (a) {
+      artifact = a;
+      if (!a) loadFallback();
+    }).catch(loadFallback);
+  } else {
+    loadFallback();
+  }
+
+  function loadFallback() {
+    if (state.items.length) return;
+    try { var s = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); if (s && s.items) { state = s; render(); } } catch (_) {}
+  }
+
+  // Offline support on the web. The Android app loads from file:// and does not need it.
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+})();
+</script></body></html>
