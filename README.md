@@ -24,7 +24,7 @@ Lista finnes bare på denne telefonen. Den blir ikke delt med andre enheter, og 
 
 ## Android
 
-1. Last ned APK-filen fra [Releases](https://github.com/Keilen10/shopping-list/releases/latest) på telefonen.
+1. Last ned APK-filen fra [Releases](https://github.com/Keilen10/shopping-list/releases) på telefonen.
 2. Trykk på filen, og tillat installasjon fra ukjente kilder hvis du blir spurt.
 3. Åpne **Shopping list**.
 
@@ -45,8 +45,8 @@ APK-en havner i `app/build/outputs/apk/debug/app-debug.apk`.
 ## Lage en ny versjon
 
 1. Gjør endringene i `app/src/main/assets`. Android-appen og nettsiden bruker de samme filene.
-2. Øk `versionCode` og endre `versionName` i `app/build.gradle.kts`.
-3. Endre `CACHE` øverst i `app/src/main/assets/sw.js`. Ellers beholder iPhone de gamle filene.
+2. Endre versjonsnummeret i `app/src/main/assets/version.js`. Android-appen, innstillingspanelet og nettsiden henter det derfra.
+3. Øk `versionCode` med 1 i `app/build.gradle.kts`. Ellers kan ikke Android oppdatere appen.
 4. Skriv endringene i `CHANGELOG.md`.
 5. Bygg APK-en, og legg den ved en ny [GitHub Release](https://github.com/Keilen10/shopping-list/releases).
 6. Last opp endringene til `main`. Nettsiden publiseres av seg selv når filene i `app/src/main/assets` endres.

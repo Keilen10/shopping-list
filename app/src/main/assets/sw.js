@@ -1,9 +1,12 @@
-// Change this name on every release, or installed copies keep the old files.
-var CACHE = 'shopping-list-v0.0.1';
+importScripts('version.js');
+
+// A new APP_VERSION gives a new cache, so installed copies fetch the new files.
+var CACHE = 'shopping-list-v' + APP_VERSION;
 var FILES = [
   './',
   'index.html',
   'shopping-list.html',
+  'version.js',
   'manifest.webmanifest',
   'apple-touch-icon.png',
   'icon-192.png',

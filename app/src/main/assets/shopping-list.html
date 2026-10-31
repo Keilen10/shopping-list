@@ -9,20 +9,34 @@
 <meta name="apple-mobile-web-app-title" content="Shopping list">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script src="version.js"></script>
+<script>
+  // Set the theme before the first paint, so a chosen theme never flashes the wrong colours.
+  try {
+    var savedTheme = JSON.parse(localStorage.getItem('shopping-list-settings') || '{}').theme;
+    if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.setAttribute('data-theme', savedTheme);
+  } catch (_) {}
+</script>
 <style>
   :root {
+    color-scheme: light;
     --bg: #f6f5f1; --card: #ffffff; --ink: #1d1d1b; --muted: #77746c;
     --line: #e7e4dc; --accent: #2f7d5b; --accent-soft: #e4f1ea; --danger: #b54134;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #161614; --card: #201f1c; --ink: #f1efe9; --muted: #9a968c;
+    :root:not([data-theme=light]) { color-scheme: dark;
+      --bg: #161614; --card: #201f1c; --ink: #f1efe9; --muted: #9a968c;
       --line: #33312c; --accent: #5cbf91; --accent-soft: #1f3529; --danger: #e07a6d; }
   }
+  :root[data-theme=dark] { color-scheme: dark;
+    --bg: #161614; --card: #201f1c; --ink: #f1efe9; --muted: #9a968c;
+    --line: #33312c; --accent: #5cbf91; --accent-soft: #1f3529; --danger: #e07a6d; }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink);
     font-family: system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
   main { max-width: 520px; margin: 0 auto; padding: 32px 18px 60px; }
-  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 18px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .head-right { display: flex; align-items: center; gap: 8px; }
   h1 { font-size: 28px; margin: 0; letter-spacing: -0.02em; }
   .count { color: var(--muted); font-size: 14px; }
   form { display: flex; gap: 8px; margin-bottom: 12px; }
@@ -60,35 +74,87 @@
   .empty { padding: 26px 14px; text-align: center; color: var(--muted); font-size: 15px; }
   .status { text-align: center; color: var(--muted); font-size: 12px; min-height: 16px; }
   .readonly form, .readonly .chips, .readonly .del, .readonly .link { display: none; }
+  .icon-btn { background: none; color: var(--muted); width: 40px; height: 40px; border-radius: 10px;
+    display: grid; place-items: center; padding: 0; }
+  .icon-btn:hover { color: var(--accent); }
+  .icon-btn svg { width: 22px; height: 22px; display: block; }
+  dialog { width: 100%; max-width: 520px; margin: auto auto 0; padding: 0; color: var(--ink); background: var(--card);
+    border: 1px solid var(--line); border-bottom: none; border-radius: 16px 16px 0 0; }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.45); }
+  .sheet { padding: 12px 18px 24px; }
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .sheet-head h2 { font-size: 20px; margin: 0; }
+  .setting { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    padding: 12px 0; border-top: 1px solid var(--line); font-size: 16px; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { background: none; color: var(--muted); font-size: 14px; padding: 8px 12px; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed=true] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .version { color: var(--muted); }
 </style>
 </head>
 <body>
 <main id="app">
   <header>
-    <h1>Shopping list</h1>
-    <span class="count" id="count"></span>
+    <h1 data-t="title">Shopping list</h1>
+    <div class="head-right">
+      <span class="count" id="count"></span>
+      <button class="icon-btn" id="openSettings" type="button" data-t-label="settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
   </header>
 
   <form id="addForm" autocomplete="off">
-    <input type="text" id="itemInput" placeholder="Add an item…" aria-label="Item">
-    <input type="text" id="qtyInput" class="qty" placeholder="Qty" aria-label="Quantity">
-    <button class="add" type="submit">Add</button>
+    <input type="text" id="itemInput" data-t-placeholder="addPlaceholder" data-t-label="item" placeholder="Add an item…" aria-label="Item">
+    <input type="text" id="qtyInput" class="qty" data-t-placeholder="qty" data-t-label="quantity" placeholder="Qty" aria-label="Quantity">
+    <button class="add" type="submit" data-t="add">Add</button>
   </form>
 
   <div class="chips" id="chips"></div>
 
   <section>
-    <div class="sec-head"><span>To buy</span></div>
+    <div class="sec-head"><span data-t="toBuy">To buy</span></div>
     <ul id="todo"></ul>
   </section>
 
   <section id="doneSec">
-    <div class="sec-head"><span>In the cart</span><button class="link" id="clearDone" type="button">Clear</button></div>
+    <div class="sec-head"><span data-t="inCart">In the cart</span><button class="link" id="clearDone" type="button" data-t="clear">Clear</button></div>
     <ul id="done"></ul>
   </section>
 
   <div class="status" id="status"></div>
 </main>
+
+<dialog id="settings" aria-labelledby="settingsTitle">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h2 id="settingsTitle" data-t="settings">Settings</h2>
+      <button class="icon-btn" id="closeSettings" type="button" data-t-label="close" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="setting">
+      <span data-t="language">Language</span>
+      <div class="seg" id="langChoice">
+        <button type="button" data-value="no">Norsk</button>
+        <button type="button" data-value="en">English</button>
+      </div>
+    </div>
+    <div class="setting">
+      <span data-t="appearance">Appearance</span>
+      <div class="seg" id="themeChoice">
+        <button type="button" data-value="system" data-t="system">System</button>
+        <button type="button" data-value="light" data-t="light">Light</button>
+        <button type="button" data-value="dark" data-t="dark">Dark</button>
+      </div>
+    </div>
+    <div class="setting">
+      <span data-t="version">Version</span>
+      <span class="version" id="versionValue"></span>
+    </div>
+  </div>
+</dialog>
 
 <script type="application/json" id="state">{"items":[]}</script>
 
@@ -103,10 +169,37 @@
   try { state = JSON.parse(document.getElementById('state').textContent); } catch (e) { state = { items: [] }; }
   if (!state.items) state.items = [];
 
-  var QUICK = ['Milk', 'Bread', 'Eggs', 'Butter', 'Cheese', 'Coffee', 'Bananas', 'Apples', 'Chicken', 'Pasta', 'Rice', 'Toilet paper'];
+  // Quick items as [English, Norwegian].
+  var QUICK = [['Milk', 'Melk'], ['Bread', 'Brød'], ['Eggs', 'Egg'], ['Butter', 'Smør'], ['Cheese', 'Ost'], ['Coffee', 'Kaffe'],
+    ['Bananas', 'Bananer'], ['Apples', 'Epler'], ['Chicken', 'Kylling'], ['Pasta', 'Pasta'], ['Rice', 'Ris'], ['Toilet paper', 'Toalettpapir']];
+
+  var TEXT = {
+    en: {
+      title: 'Shopping list', addPlaceholder: 'Add an item…', qty: 'Qty', add: 'Add', item: 'Item', quantity: 'Quantity',
+      toBuy: 'To buy', inCart: 'In the cart', clear: 'Clear', empty: 'Nothing to buy — add something above.',
+      left: ' left', allDone: 'All done ✓', toggle: 'Toggle', remove: 'Remove', saving: 'Saving…', saved: 'Saved on this device',
+      settings: 'Settings', close: 'Close', language: 'Language', appearance: 'Appearance',
+      system: 'System', light: 'Light', dark: 'Dark', version: 'Version'
+    },
+    no: {
+      title: 'Handleliste', addPlaceholder: 'Legg til en vare…', qty: 'Antall', add: 'Legg til', item: 'Vare', quantity: 'Antall',
+      toBuy: 'Å kjøpe', inCart: 'I handlekurven', clear: 'Tøm', empty: 'Ingenting å kjøpe – legg til noe over.',
+      left: ' igjen', allDone: 'Alt er kjøpt ✓', toggle: 'Kryss av', remove: 'Fjern', saving: 'Lagrer…', saved: 'Lagret på denne enheten',
+      settings: 'Innstillinger', close: 'Lukk', language: 'Språk', appearance: 'Utseende',
+      system: 'System', light: 'Lys', dark: 'Mørk', version: 'Versjon'
+    }
+  };
 
   var $ = function (id) { return document.getElementById(id); };
-  var artifact = null, saveTimer = null, readOnly = false, LS_KEY = 'shopping-list-fallback';
+  var artifact = null, saveTimer = null, readOnly = false, LS_KEY = 'shopping-list-fallback', SETTINGS_KEY = 'shopping-list-settings';
+
+  var settings = {};
+  try { settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (_) {}
+  if (!TEXT[settings.lang]) settings.lang = /^(no|nb|nn)\b/i.test(navigator.language || '') ? 'no' : 'en';
+  if (['system', 'light', 'dark'].indexOf(settings.theme) < 0) settings.theme = 'system';
+
+  function t(key) { return TEXT[settings.lang][key]; }
+  function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (_) {} }
 
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -115,22 +208,48 @@
 
   function row(it) {
     return '<li class="' + (it.done ? 'done' : '') + '" data-id="' + it.id + '">' +
-      '<button class="box" type="button" aria-label="Toggle ' + esc(it.name) + '">' + CHECK + '</button>' +
+      '<button class="box" type="button" aria-label="' + t('toggle') + ' ' + esc(it.name) + '">' + CHECK + '</button>' +
       '<span class="name">' + esc(it.name) + (it.qty ? '<span class="q">× ' + esc(it.qty) + '</span>' : '') + '</span>' +
-      '<button class="del" type="button" aria-label="Remove ' + esc(it.name) + '">×</button></li>';
+      '<button class="del" type="button" aria-label="' + t('remove') + ' ' + esc(it.name) + '">×</button></li>';
   }
 
   function render() {
     var todo = state.items.filter(function (i) { return !i.done; });
     var done = state.items.filter(function (i) { return i.done; });
-    $('todo').innerHTML = todo.length ? todo.map(row).join('') : '<div class="empty">Nothing to buy — add something above.</div>';
+    $('todo').innerHTML = todo.length ? todo.map(row).join('') : '<div class="empty">' + t('empty') + '</div>';
     $('done').innerHTML = done.map(row).join('');
     $('doneSec').style.display = done.length ? '' : 'none';
-    $('count').textContent = todo.length ? todo.length + ' left' : (done.length ? 'All done ✓' : '');
+    $('count').textContent = todo.length ? todo.length + t('left') : (done.length ? t('allDone') : '');
     var have = {};
     state.items.forEach(function (i) { if (!i.done) have[i.name.toLowerCase()] = 1; });
-    $('chips').innerHTML = QUICK.filter(function (q) { return !have[q.toLowerCase()]; })
-      .map(function (q) { return '<button class="chip" type="button" data-q="' + esc(q) + '">+ ' + esc(q) + '</button>'; }).join('');
+    var quickIndex = settings.lang === 'no' ? 1 : 0;
+    $('chips').innerHTML = QUICK.filter(function (q) { return !have[q[0].toLowerCase()] && !have[q[1].toLowerCase()]; })
+      .map(function (q) { return esc(q[quickIndex]); })
+      .map(function (q) { return '<button class="chip" type="button" data-q="' + q + '">+ ' + q + '</button>'; }).join('');
+  }
+
+  function applyLanguage() {
+    document.documentElement.lang = settings.lang === 'no' ? 'nb' : 'en';
+    document.title = t('title');
+    document.querySelectorAll('[data-t]').forEach(function (el) { el.textContent = t(el.getAttribute('data-t')); });
+    document.querySelectorAll('[data-t-placeholder]').forEach(function (el) { el.placeholder = t(el.getAttribute('data-t-placeholder')); });
+    document.querySelectorAll('[data-t-label]').forEach(function (el) { el.setAttribute('aria-label', t(el.getAttribute('data-t-label'))); });
+    status('');
+    render();
+  }
+
+  function applyTheme() {
+    var root = document.documentElement, metas = document.querySelectorAll('meta[name=theme-color]');
+    var dark = settings.theme === 'dark' || (settings.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+    if (settings.theme === 'system') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', settings.theme);
+    metas[0].content = settings.theme === 'dark' ? '#161614' : '#f6f5f1';
+    metas[1].content = settings.theme === 'light' ? '#f6f5f1' : '#161614';
+    // The Android app matches its system bars and background to the page.
+    if (window.AndroidApp) window.AndroidApp.setDarkTheme(dark);
+  }
+
+  function markChoice(id, value) {
+    $(id).querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-value') === value)); });
   }
 
   function status(msg) { $('status').textContent = msg || ''; }
@@ -138,7 +257,7 @@
   function save() {
     if (readOnly) return;
     clearTimeout(saveTimer);
-    status('Saving…');
+    status(t('saving'));
     doSave();
   }
 
@@ -153,7 +272,7 @@
         else { status('Could not save — try again'); }
       });
     } else {
-      try { localStorage.setItem(LS_KEY, json); status('Saved on this device'); } catch (e) { status(''); }
+      try { localStorage.setItem(LS_KEY, json); status(t('saved')); } catch (e) { status(''); }
     }
   }
 
@@ -198,7 +317,34 @@
     state.items = state.items.filter(function (i) { return !i.done; }); render(); save();
   });
 
-  render();
+  $('openSettings').addEventListener('click', function () { $('settings').showModal(); });
+  $('closeSettings').addEventListener('click', function () { $('settings').close(); });
+  $('settings').addEventListener('click', function (e) { if (e.target === this) this.close(); });
+
+  $('langChoice').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    settings.lang = b.getAttribute('data-value');
+    saveSettings(); markChoice('langChoice', settings.lang); applyLanguage();
+  });
+
+  $('themeChoice').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    settings.theme = b.getAttribute('data-value');
+    saveSettings(); markChoice('themeChoice', settings.theme); applyTheme();
+  });
+
+  // Called by the Android back button: closes the panel first, otherwise the app leaves.
+  window.handleBack = function () {
+    if (!$('settings').open) return false;
+    $('settings').close();
+    return true;
+  };
+
+  $('versionValue').textContent = window.APP_VERSION || '';
+  markChoice('langChoice', settings.lang);
+  markChoice('themeChoice', settings.theme);
+  applyTheme();
+  applyLanguage();
 
   // Shared saving through the artifact; fall back to this browser only.
   if (window.claude && typeof window.claude.use === 'function') {
@@ -217,7 +363,7 @@
 
   // Offline support on the web. The Android app loads from file:// and does not need it.
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-    navigator.serviceWorker.register('sw.js').catch(function () {});
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function () {});
   }
 })();
 </script></body></html>

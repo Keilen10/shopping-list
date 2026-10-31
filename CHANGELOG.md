@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.1.0 – 2026-10-31
+
+### Lagt til
+- Innstillingspanel som åpnes med et tannhjul øverst til høyre.
+- Valg av språk (norsk eller engelsk). Første gang følger appen språket på telefonen.
+- Valg av utseende (System, Lys eller Mørk).
+- Versjonsnummeret vises i innstillingene.
+
+### Endret
+- Nytt app-ikon: en enkel handleliste.
+- Android: tilbake-knappen lukker innstillingspanelet før den lukker appen.
+- Android: statuslinjen og bakgrunnen følger valgt tema.
+- Versjonsnummeret står nå bare i `version.js`.
+
 ## v0.0.1 – 2026-10-31
 
 ### Lagt til
