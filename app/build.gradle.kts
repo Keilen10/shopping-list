@@ -14,7 +14,7 @@ android {
         applicationId = "com.example.shoppinglist"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
+        versionCode = 4
         versionName = appVersion
     }
 

@@ -1,4 +1,4 @@
-# Shopping list
+# Handleliste
 
 En enkel handleliste som virker uten nett. Lista lagres bare på telefonen din.
 
@@ -11,9 +11,12 @@ Se [CHANGELOG.md](CHANGELOG.md) for hva som er endret i hver versjon.
 
 1. Last ned APK-filen fra [Releases](https://github.com/Keilen10/shopping-list/releases) på telefonen.
 2. Trykk på filen, og tillat installasjon fra ukjente kilder hvis du blir spurt.
-3. Åpne **Shopping list**.
+3. Hvis Google Play Protect blokkerer appen, trykker du **Installer likevel**.
+4. Åpne **Handleliste**.
 
 Appen trenger ikke internett og ber ikke om noen tillatelser.
+
+**Om advarselen fra Play Protect:** Appen er ikke i Play Butikk, og Google kjenner ikke utvikleren. Derfor vises meldingen «Appen er blokkert for å beskytte enheten din». Installer bare hvis du lastet ned filen fra [Releases](https://github.com/Keilen10/shopping-list/releases) i dette repoet.
 
 ## iPhone
 

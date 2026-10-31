@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.0 – 2026-10-31
+
+### Lagt til
+- **Fjern alt**-knapp i «Å kjøpe» som tømmer hele lista, også handlekurven.
+- Bekreftelse før lista slettes, med antall varer som forsvinner.
+- README forklarer advarselen fra Google Play Protect.
+
+### Endret
+- Appen heter nå **Handleliste**. Overskriften inne i appen følger fortsatt valgt språk.
+- **Fjern alt** og **Tøm** er lettere å treffe.
+- Stegene for å lage en ny versjon er flyttet til `RELEASING.md`.
+
 ## v0.1.0 – 2026-10-31
 
 ### Lagt til
