@@ -14,6 +14,8 @@ val keystoreProps = Properties().apply {
 val appVersion = Regex("APP_VERSION = '(.+)'")
     .find(file("src/main/assets/version.js").readText())!!
     .groupValues[1]
+val appVersionCode = appVersion.toIntOrNull()
+    ?: error("APP_VERSION in version.js must be a whole number, not '$appVersion'")
 
 android {
     namespace = "com.example.shoppinglist"
@@ -23,7 +25,7 @@ android {
         applicationId = "no.itproas.handleliste"
         minSdk = 24
         targetSdk = 36
-        versionCode = 4
+        versionCode = appVersionCode
         versionName = appVersion
     }
 

@@ -1,6 +1,8 @@
 # Changelog
 
-## Ikke utgitt
+## Versjon 5 – 2026-11-16
+
+Første versjon for Google Play.
 
 ### Lagt til
 - Personvernerklæring på norsk og engelsk (`personvern.html`), publisert på GitHub Pages.
@@ -8,6 +10,7 @@
 
 ### Endret
 - Pakkenavnet er nå `no.itproas.handleliste`, slik Google Play krever. Appen installeres som en ny app, så lister i den gamle versjonen følger ikke med.
+- Versjonsnummeret er nå ett tall som øker med 1 for hver versjon. Versjon 5 kommer etter v0.2.0.
 
 ### Fjernet
 - Gammel kode for lagring utenfor enheten, som aldri var i bruk i appen eller på nettsiden. Lista lagres fortsatt bare lokalt.
