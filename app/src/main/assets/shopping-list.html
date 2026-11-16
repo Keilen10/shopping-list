@@ -50,6 +50,20 @@
   .chip { background: transparent; border: 1px dashed var(--line); color: var(--muted);
     padding: 5px 10px; border-radius: 999px; font-size: 13px; }
   .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip-tool { border-style: solid; }
+  .chip-done { background: var(--accent); border: 1px solid var(--accent); color: #fff; font-weight: 600; }
+  .chip-done:hover { color: #fff; }
+  .chip-edit { display: inline-flex; align-items: center; gap: 2px; padding: 5px 4px 5px 10px; border-style: solid;
+    color: var(--ink); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+  .chip-edit.dragging { border-color: var(--accent); background: var(--accent-soft); cursor: grabbing; }
+  .chip-x { background: none; color: var(--muted); font-size: 16px; line-height: 1; padding: 0 5px; }
+  .chip-x:hover { color: var(--danger); }
+  .chips input.chip-input { flex: 0 0 auto; width: 9em; font-size: 16px; padding: 0; border: none; border-radius: 0;
+    background: transparent; color: var(--ink); }
+  .chip-editing { padding-right: 10px; border-color: var(--accent); cursor: text; }
+  .chips-help { flex-basis: 100%; display: flex; justify-content: space-between; gap: 8px; margin-top: 2px;
+    font-size: 12px; color: var(--muted); }
+  .chips-help .link { font-size: 12px; padding: 0; }
   section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; margin-bottom: 16px; }
   .sec-head { display: flex; justify-content: space-between; align-items: center;
     padding: 10px 14px; font-size: 12px; font-weight: 600; text-transform: uppercase;
@@ -164,13 +178,13 @@
   </div>
 </dialog>
 
-<dialog id="confirmRemoveAll" class="confirm" aria-labelledby="confirmTitle">
+<dialog id="confirmDialog" class="confirm" aria-labelledby="confirmTitle">
   <div class="confirm-body">
     <h2 id="confirmTitle"></h2>
-    <p data-t="cannotUndo">This can't be undone.</p>
+    <p id="confirmBody"></p>
     <div class="confirm-actions">
-      <button class="btn-plain" id="cancelRemoveAll" type="button" data-t="cancel">Cancel</button>
-      <button class="btn-danger" id="doRemoveAll" type="button" data-t="removeAll">Remove all</button>
+      <button class="btn-plain" id="confirmCancel" type="button" data-t="cancel">Cancel</button>
+      <button class="btn-danger" id="confirmOk" type="button"></button>
     </div>
   </div>
 </dialog>
@@ -183,10 +197,6 @@
   try { state = JSON.parse(document.getElementById('state').textContent); } catch (e) { state = { items: [] }; }
   if (!state.items) state.items = [];
 
-  // Quick items as [English, Norwegian].
-  var QUICK = [['Milk', 'Melk'], ['Bread', 'Brød'], ['Eggs', 'Egg'], ['Butter', 'Smør'], ['Cheese', 'Ost'], ['Coffee', 'Kaffe'],
-    ['Bananas', 'Bananer'], ['Apples', 'Epler'], ['Chicken', 'Kylling'], ['Pasta', 'Pasta'], ['Rice', 'Ris'], ['Toilet paper', 'Toalettpapir']];
-
   var TEXT = {
     en: {
       title: 'Shopping list', addPlaceholder: 'Add an item…', qty: 'Qty', add: 'Add', item: 'Item', quantity: 'Quantity',
@@ -195,7 +205,11 @@
       settings: 'Settings', close: 'Close', language: 'Language', appearance: 'Appearance',
       system: 'System', light: 'Light', dark: 'Dark', version: 'Version',
       removeAll: 'Remove all', confirmOne: 'Remove 1 item?', confirmMany: 'Remove all {n} items?',
-      cannotUndo: 'This can\'t be undone.', cancel: 'Cancel'
+      cannotUndo: 'This can\'t be undone.', cancel: 'Cancel',
+      editQuick: '✎ Edit', doneQuick: 'Done', newQuick: '+ New', newQuickPlaceholder: 'New item',
+      quickEmpty: '+ Add an item with “Edit”', quickHint: 'Tap to rename, drag to move.',
+      clearQuick: 'Remove all', clearQuickTitle: 'Remove all quick items?',
+      quickFull: 'You can have at most 30 quick items.', quickExists: '{name} is already there.'
     },
     no: {
       title: 'Handleliste', addPlaceholder: 'Legg til en vare…', qty: 'Antall', add: 'Legg til', item: 'Vare', quantity: 'Antall',
@@ -204,12 +218,23 @@
       settings: 'Innstillinger', close: 'Lukk', language: 'Språk', appearance: 'Utseende',
       system: 'System', light: 'Lys', dark: 'Mørk', version: 'Versjon',
       removeAll: 'Fjern alt', confirmOne: 'Fjerne 1 vare?', confirmMany: 'Fjerne alle {n} varene?',
-      cannotUndo: 'Dette kan ikke angres.', cancel: 'Avbryt'
+      cannotUndo: 'Dette kan ikke angres.', cancel: 'Avbryt',
+      editQuick: '✎ Rediger', doneQuick: 'Ferdig', newQuick: '+ Ny', newQuickPlaceholder: 'Ny vare',
+      quickEmpty: '+ Legg til en vare med «Rediger»', quickHint: 'Trykk for å endre navn, dra for å flytte.',
+      clearQuick: 'Fjern alle', clearQuickTitle: 'Fjerne alle hurtigvarene?',
+      quickFull: 'Du kan ha maks 30 hurtigvarer.', quickExists: '{name} finnes allerede.'
     }
   };
 
   var $ = function (id) { return document.getElementById(id); };
-  var saveTimer = null, LS_KEY = 'shopping-list-fallback', SETTINGS_KEY = 'shopping-list-settings';
+  var saveTimer = null, LS_KEY = 'shopping-list-fallback', SETTINGS_KEY = 'shopping-list-settings', QUICK_KEY = 'shopping-list-quick';
+  var MAX_QUICK = 30, MAX_QUICK_NAME = 30;
+
+  // The user's own quick items. The list starts empty.
+  var customQuick = [];
+  try { customQuick = JSON.parse(localStorage.getItem(QUICK_KEY) || '[]'); } catch (_) {}
+  if (!Array.isArray(customQuick)) customQuick = [];
+  var editingQuick = false, renaming = null, quickMsgTimer = null; // renaming: index, -1 for a new item, null when not typing
 
   var settings = {};
   try { settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch (_) {}
@@ -239,12 +264,81 @@
     $('doneSec').style.display = done.length ? '' : 'none';
     $('removeAll').style.display = state.items.length ? '' : 'none';
     $('count').textContent = todo.length ? todo.length + t('left') : (done.length ? t('allDone') : '');
-    var have = {};
-    state.items.forEach(function (i) { if (!i.done) have[i.name.toLowerCase()] = 1; });
-    var quickIndex = settings.lang === 'no' ? 1 : 0;
-    $('chips').innerHTML = QUICK.filter(function (q) { return !have[q[0].toLowerCase()] && !have[q[1].toLowerCase()]; })
-      .map(function (q) { return esc(q[quickIndex]); })
-      .map(function (q) { return '<button class="chip" type="button" data-q="' + q + '">+ ' + q + '</button>'; }).join('');
+    renderChips();
+  }
+
+  function quickList() { return customQuick.slice(); }
+
+  function renderChips() {
+    var box = $('chips');
+    // Don't throw away a name that is being typed.
+    if (box.querySelector('.chip-input') && document.activeElement && document.activeElement.classList.contains('chip-input')) return;
+    var list = quickList(), html = '';
+    if (!editingQuick) {
+      var have = {};
+      state.items.forEach(function (i) { if (!i.done) have[i.name.toLowerCase()] = 1; });
+      html = list.length ? list.filter(function (name) { return !have[name.toLowerCase()]; }).map(function (name) {
+        return '<button class="chip" type="button" data-q="' + esc(name) + '">+ ' + esc(name) + '</button>';
+      }).join('') : '<button class="chip" type="button" data-action="first">' + t('quickEmpty') + '</button>';
+      html += '<button class="chip chip-tool" type="button" data-action="edit">' + t('editQuick') + '</button>';
+    } else {
+      html = list.map(function (name, i) {
+        if (renaming === i) return quickInputChip(name, i);
+        return '<span class="chip chip-edit" data-i="' + i + '"><span class="chip-name">' + esc(name) + '</span>' +
+          '<button class="chip-x" type="button" aria-label="' + t('remove') + ' ' + esc(name) + '">×</button></span>';
+      }).join('');
+      html += renaming === -1 ? quickInputChip('', -1) :
+        '<button class="chip chip-tool" type="button" data-action="new">' + t('newQuick') + '</button>';
+      html += '<button class="chip chip-done" type="button" data-action="done">' + t('doneQuick') + '</button>' +
+        '<div class="chips-help"><span id="quickMsg">' + t('quickHint') + '</span>' +
+        (list.length ? '<button class="link" type="button" data-action="clear">' + t('clearQuick') + '</button>' : '') + '</div>';
+    }
+    box.classList.toggle('editing', editingQuick);
+    box.innerHTML = html;
+    var input = box.querySelector('.chip-input');
+    if (input) { input.focus(); input.select(); }
+  }
+
+  function quickInputChip(name, i) {
+    return '<span class="chip chip-editing" data-i="' + i + '"><input type="text" class="chip-input" maxlength="' + MAX_QUICK_NAME +
+      '" value="' + esc(name) + '" placeholder="' + t('newQuickPlaceholder') + '" aria-label="' + t('newQuickPlaceholder') + '"></span>';
+  }
+
+  function saveQuick(list) {
+    customQuick = list;
+    try { localStorage.setItem(QUICK_KEY, JSON.stringify(list)); } catch (_) {}
+  }
+
+  function quickMessage(msg) {
+    var el = $('quickMsg'); if (!el) return;
+    el.textContent = msg;
+    clearTimeout(quickMsgTimer);
+    quickMsgTimer = setTimeout(function () { if ($('quickMsg')) $('quickMsg').textContent = t('quickHint'); }, 3000);
+  }
+
+  // Saves the typed name (new or renamed). Empty or unchanged input just closes the field.
+  function commitQuickInput(input) {
+    if (input.dataset.done) return;
+    input.dataset.done = '1';
+    var name = input.value.replace(/\s+/g, ' ').trim().slice(0, MAX_QUICK_NAME);
+    var list = quickList(), at = renaming, msg = '';
+    renaming = null;
+    if (name) {
+      var taken = list.some(function (n, i) { return i !== at && n.toLowerCase() === name.toLowerCase(); });
+      if (taken) msg = t('quickExists').replace('{name}', name);
+      else if (at === -1) { list.push(name); saveQuick(list); }
+      else if (list[at] !== name) { list[at] = name; saveQuick(list); }
+    }
+    input.blur();
+    renderChips();
+    if (msg) quickMessage(msg);
+  }
+
+  function cancelQuickInput(input) {
+    input.dataset.done = '1';
+    renaming = null;
+    input.blur();
+    renderChips();
   }
 
   function applyLanguage() {
@@ -307,9 +401,86 @@
   });
   try { var d = sessionStorage.getItem('sl-draft'); if (d) $('itemInput').value = d; } catch (_) {}
 
+  var drag = null, justDragged = false;
+
   $('chips').addEventListener('click', function (e) {
-    var b = e.target.closest('.chip'); if (b) addItem(b.getAttribute('data-q'), '');
+    if (justDragged) return;
+    var tool = e.target.closest('[data-action]');
+    if (tool) { quickAction(tool.getAttribute('data-action')); return; }
+    if (editingQuick) {
+      var chip = e.target.closest('.chip-edit'); if (!chip) return;
+      var i = Number(chip.getAttribute('data-i'));
+      if (e.target.closest('.chip-x')) {
+        var list = quickList(); list.splice(i, 1); saveQuick(list); renderChips();
+      } else { renaming = i; renderChips(); }
+      return;
+    }
+    var b = e.target.closest('.chip[data-q]'); if (b) addItem(b.getAttribute('data-q'), '');
   });
+
+  function quickAction(action) {
+    var input = $('chips').querySelector('.chip-input');
+    if (input) commitQuickInput(input);
+    if (action === 'edit') { editingQuick = true; renaming = null; renderChips(); }
+    else if (action === 'first') { editingQuick = true; renaming = -1; renderChips(); }
+    else if (action === 'done') { editingQuick = false; renaming = null; renderChips(); }
+    else if (action === 'new') {
+      if (quickList().length >= MAX_QUICK) { quickMessage(t('quickFull')); return; }
+      renaming = -1; renderChips();
+    } else if (action === 'clear') {
+      askConfirm(t('clearQuickTitle'), t('cannotUndo'), t('clearQuick'), function () { saveQuick([]); renderChips(); });
+    }
+  }
+
+  $('chips').addEventListener('keydown', function (e) {
+    if (!e.target.classList.contains('chip-input')) return;
+    if (e.key === 'Enter') { e.preventDefault(); commitQuickInput(e.target); }
+    else if (e.key === 'Escape') { e.preventDefault(); cancelQuickInput(e.target); }
+  });
+  $('chips').addEventListener('focusout', function (e) {
+    if (e.target.classList.contains('chip-input')) commitQuickInput(e.target);
+  });
+  // Keep the typed name focused while a button is pressed, so the button's own click still arrives.
+  $('chips').addEventListener('mousedown', function (e) {
+    if (e.target.closest('[data-action]') && $('chips').querySelector('.chip-input')) e.preventDefault();
+  });
+
+  // Drag a quick item onto another one to move it. A short tap still renames it.
+  $('chips').addEventListener('pointerdown', function (e) {
+    if (!editingQuick || renaming !== null || e.button > 0) return;
+    var chip = e.target.closest('.chip-edit');
+    if (!chip || e.target.closest('.chip-x')) return;
+    drag = { el: chip, x: e.clientX, y: e.clientY, id: e.pointerId, moving: false };
+  });
+  $('chips').addEventListener('pointermove', function (e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.moving) {
+      if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) < 8) return;
+      drag.moving = true;
+      drag.el.classList.add('dragging');
+      try { drag.el.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    e.preventDefault();
+    var over = document.elementFromPoint(e.clientX, e.clientY);
+    var target = over && over.closest('.chip-edit');
+    if (!target || target === drag.el) return;
+    var chips = Array.prototype.slice.call($('chips').querySelectorAll('.chip-edit'));
+    if (chips.indexOf(target) > chips.indexOf(drag.el)) target.after(drag.el); else target.before(drag.el);
+  });
+  function endDrag(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (drag.moving) {
+      var list = quickList();
+      var order = Array.prototype.map.call($('chips').querySelectorAll('.chip-edit'), function (el) { return list[Number(el.getAttribute('data-i'))]; });
+      saveQuick(order);
+      justDragged = true;
+      setTimeout(function () { justDragged = false; }, 50);
+      renderChips();
+    }
+    drag = null;
+  }
+  $('chips').addEventListener('pointerup', endDrag);
+  $('chips').addEventListener('pointercancel', endDrag);
 
   document.addEventListener('click', function (e) {
     var li = e.target.closest('li[data-id]'); if (!li) return;
@@ -327,17 +498,30 @@
   $('closeSettings').addEventListener('click', function () { $('settings').close(); });
   $('settings').addEventListener('click', function (e) { if (e.target === this) this.close(); });
 
+  // One confirmation box for everything that can't be undone.
+  var onConfirm = null;
+  function askConfirm(title, body, okLabel, action) {
+    $('confirmTitle').textContent = title;
+    $('confirmBody').textContent = body;
+    $('confirmOk').textContent = okLabel;
+    onConfirm = action;
+    $('confirmDialog').showModal();
+  }
+  $('confirmCancel').addEventListener('click', function () { $('confirmDialog').close(); });
+  $('confirmDialog').addEventListener('click', function (e) { if (e.target === this) this.close(); });
+  $('confirmDialog').addEventListener('close', function () { onConfirm = null; });
+  $('confirmOk').addEventListener('click', function () {
+    var action = onConfirm;
+    $('confirmDialog').close();
+    if (action) action();
+  });
+
   $('removeAll').addEventListener('click', function () {
     var n = state.items.length;
-    $('confirmTitle').textContent = n === 1 ? t('confirmOne') : t('confirmMany').replace('{n}', n);
-    $('confirmRemoveAll').showModal();
-  });
-  $('cancelRemoveAll').addEventListener('click', function () { $('confirmRemoveAll').close(); });
-  $('confirmRemoveAll').addEventListener('click', function (e) { if (e.target === this) this.close(); });
-  $('doRemoveAll').addEventListener('click', function () {
-    state.items = [];
-    $('confirmRemoveAll').close();
-    render(); save();
+    askConfirm(n === 1 ? t('confirmOne') : t('confirmMany').replace('{n}', n), t('cannotUndo'), t('removeAll'), function () {
+      state.items = [];
+      render(); save();
+    });
   });
 
   $('langChoice').addEventListener('click', function (e) {
@@ -352,12 +536,17 @@
     saveSettings(); markChoice('themeChoice', settings.theme); applyTheme();
   });
 
-  // Called by the Android back button: closes an open dialog first, otherwise the app leaves.
+  // Called by the Android back button: closes an open dialog or quick-item editing first, otherwise the app leaves.
   window.handleBack = function () {
     var open = document.querySelector('dialog[open]');
-    if (!open) return false;
-    open.close();
-    return true;
+    if (open) { open.close(); return true; }
+    if (editingQuick) {
+      var input = $('chips').querySelector('.chip-input');
+      if (input) commitQuickInput(input);
+      editingQuick = false; renaming = null; renderChips();
+      return true;
+    }
+    return false;
   };
 
   $('versionValue').textContent = window.APP_VERSION || '';

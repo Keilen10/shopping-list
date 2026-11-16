@@ -1,5 +1,16 @@
 # Changelog
 
+## Versjon 6 – 2026-11-16
+
+### Lagt til
+- Egne hurtigvarer: trykk **✎ Rediger** for å legge til, endre navn på, fjerne og flytte dem (dra og slipp).
+- **Fjern alle** hurtigvarer, med bekreftelse.
+- Maks 30 hurtigvarer og 30 tegn per navn, og samme vare kan ikke legges inn to ganger.
+
+### Endret
+- Appen starter uten forhåndsvalgte hurtigvarer. En tom liste viser «+ Legg til en vare med «Rediger»».
+- Tilbake-knappen på Android avslutter redigering av hurtigvarer før den lukker appen.
+
 ## Versjon 5 – 2026-11-16
 
 Første versjon for Google Play.
